@@ -10,6 +10,8 @@ import henrycaldwell.Alliance;
 import henrycaldwell.board.Board;
 import henrycaldwell.board.BoardUtils;
 import henrycaldwell.board.Move;
+import henrycaldwell.board.Move.AttackMove;
+import henrycaldwell.board.Move.MajorMove;
 import henrycaldwell.board.Tile;
 
 public class Knight extends Piece {
@@ -38,13 +40,13 @@ public class Knight extends Piece {
                 Tile candidateDestinationTile = board.getTile(candidateDestinationCoordinate);
 
                 if (!candidateDestinationTile.isTileOccupied()) {
-                    legalMoves.add(new Move());
+                    legalMoves.add(new MajorMove(board, this, candidateDestinationCoordinate));
                 } else {
                     Piece pieceAtDestination = candidateDestinationTile.getPiece();
                     Alliance pieceAlliance = pieceAtDestination.getPieceAlliance();
 
                     if (this.pieceAlliance != pieceAlliance) {
-                        legalMoves.add(new Move());
+                        legalMoves.add(new AttackMove(board, this, candidateDestinationCoordinate, pieceAtDestination));
                     }
                 }
             }
