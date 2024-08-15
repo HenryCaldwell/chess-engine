@@ -60,10 +60,19 @@ public class Bishop extends Piece {
     }
 
     private static boolean isFirstColumnExclusion(int currentPosition, int candidateOffset) {
-        return BoardUtils.FIRST_COLUMN[currentPosition] && (candidateOffset == -9 || candidateOffset == 7);
+        return BoardUtils.FIRST_COLUMN[currentPosition] && 
+                (candidateOffset == -9 || 
+                candidateOffset == 7);
     }
 
     private static boolean isEighthColumnExclusion(int currentPosition, int candidateOffset) {
-        return BoardUtils.EIGHTH_COLUMN[currentPosition] && (candidateOffset == -7 || candidateOffset == 9);
+        return BoardUtils.EIGHTH_COLUMN[currentPosition] && 
+                (candidateOffset == -7 || 
+                candidateOffset == 9);
+    }
+
+    @Override
+    public String toString() {
+        return PieceType.BISHOP.toString();
     }
 }

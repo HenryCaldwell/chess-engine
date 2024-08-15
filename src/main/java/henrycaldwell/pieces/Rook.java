@@ -60,10 +60,17 @@ public class Rook extends Piece {
     }
 
     private static boolean isFirstColumnExclusion(int currentPosition, int candidateOffset) {
-        return BoardUtils.FIRST_COLUMN[currentPosition] && (candidateOffset == -1);
+        return BoardUtils.FIRST_COLUMN[currentPosition] && 
+                (candidateOffset == -1);
     }
 
     private static boolean isEighthColumnExclusion(int currentPosition, int candidateOffset) {
-        return BoardUtils.EIGHTH_COLUMN[currentPosition] && (candidateOffset == 1);
+        return BoardUtils.EIGHTH_COLUMN[currentPosition] && 
+                (candidateOffset == 1);
+    }
+
+    @Override
+    public String toString() {
+        return PieceType.ROOK.toString();
     }
 }
