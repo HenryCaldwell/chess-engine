@@ -37,6 +37,10 @@ enum class Piece : int {
 constexpr int NUM_SQUARES = 64;
 constexpr int NUM_PIECES = 6;
 constexpr int NUM_COLORS = 2;
+constexpr int MIN_FILE = 0;
+constexpr int MAX_FILE = 7;
+constexpr int MIN_RANK = 0;
+constexpr int MAX_RANK = 7;
 
 constexpr int squareToInt(Square square) {
   return static_cast<int>(square);
