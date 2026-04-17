@@ -1,4 +1,5 @@
 #include "Board.hpp"
+#include "Attacks.hpp"
 #include <iostream>
 #include <sstream>
 
@@ -289,6 +290,54 @@ Square Board::findKing(Color color) const {
   }
 
   return intToSquare(lowestBit(kingBitboard));
+}
+
+
+
+
+bool Board:: isAttacked(Square square, Color attackingColor) const {
+  int squareIndex = squareToInt(square);
+  int attackerIndex = colorToInt(attackingColor);
+  Bitboard occupiedBitboard = allBitboard();
+
+  // Pawn attacks
+  Color defendingColor = (attackingColor == Color::WHITE) ? Color::BLACK : Color::WHITE;
+  if (Attacks::pawnAttacks[colorToInt(defendingColor)][squareIndex] & pieceBitboards_[attackerIndex][pieceToInt(Piece::PAWN)]) {
+    return true;
+  }
+
+  // Knight attacks
+  if (Attacks::knightAttacks[squareIndex] & pieceBitboards_[attackerIndex][pieceToInt(Piece::KNIGHT)]) {
+    return true;
+  }
+
+  // Bishop/queen attacks (diagonal)
+  Bitboard bishopsAndQueens = pieceBitboards_[attackerIndex][pieceToInt(Piece::BISHOP)]
+    | pieceBitboards_[attackerIndex][pieceToInt(Piece::QUEEN)];
+  if (Attacks::bishopAttacks(occupiedBitboard, square) & bishopsAndQueens) {
+    return true;
+  }
+
+  // Rook/queen attacks (straight)
+  Bitboard rooksAndQueens = pieceBitboards_[attackerIndex][pieceToInt(Piece::ROOK)]
+    | pieceBitboards_[attackerIndex][pieceToInt(Piece::QUEEN)];
+  if (Attacks::rookAttacks(occupiedBitboard, square) & rooksAndQueens) {
+    return true;
+  }
+
+  // King attacks
+  if (Attacks::kingAttacks[squareIndex] & pieceBitboards_[attackerIndex][pieceToInt(Piece::KING)]) {
+    return true;
+  }
+
+  return false;
+}
+
+bool Board::isInCheck(Color color) const {
+  Square kingSquare = findKing(color);
+  Color attackingColor = (color == Color::WHITE) ? Color::BLACK : Color::WHITE;
+
+  return isAttacked(kingSquare, attackingColor);
 }
 
 

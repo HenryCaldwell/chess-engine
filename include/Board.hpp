@@ -59,6 +59,12 @@ public:
 
 
 
+  bool isAttacked(Square square, Color attackingColor) const;
+  bool isInCheck(Color color) const;
+
+
+
+
   void print() const;
 
 private:
