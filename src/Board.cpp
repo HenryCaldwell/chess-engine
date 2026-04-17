@@ -195,6 +195,14 @@ std::string Board::toFEN() const {
 
 
 
+Bitboard Board::pieceBitboard(Color color, Piece piece) const {
+  return pieceBitboards_[colorToInt(color)][pieceToInt(piece)];
+}
+
+Bitboard Board::colorBitboard(Color color) const {
+  return colorBitboards_[colorToInt(color)];
+}
+
 Bitboard Board::allBitboard() const {
   return colorBitboards_[0] | colorBitboards_[1];
 }

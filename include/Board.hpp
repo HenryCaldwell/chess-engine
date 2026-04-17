@@ -25,6 +25,8 @@ public:
 
 
 
+  Bitboard pieceBitboard(Color color, Piece piece) const;
+  Bitboard colorBitboard(Color color) const;
   Bitboard allBitboard() const;
 
 
