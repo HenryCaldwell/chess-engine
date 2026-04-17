@@ -1,5 +1,6 @@
 #include "Board.hpp"
 #include "Attacks.hpp"
+#include "Zobrist.hpp"
 #include <iostream>
 #include <sstream>
 
@@ -15,6 +16,7 @@ Board::Board()
   , enPassantSquare_(Square::NONE)
   , halfmoveClock_(0)
   , fullmoveNumber_(1)
+  , hash_(0)
   , pieceMailbox_{}
   , colorMailbox_{}
 {
@@ -118,6 +120,28 @@ void Board::setFromFEN(const std::string& fen) {
 
   halfmoveClock_ = halfmoveClockValue;
   fullmoveNumber_ = fullmoveNumberValue;
+
+  hash_ = 0;
+  for (int color = 0; color < NUM_COLORS; color++) {
+    for (int piece = 0; piece < NUM_PIECES; piece++) {
+      Bitboard pieces = pieceBitboards_[color][piece];
+
+      while (pieces) {
+        int square = popLowestBit(pieces);
+        hash_ ^= Zobrist::pieceKeys[color][piece][square];
+      }
+    }
+  }
+ 
+  hash_ ^= Zobrist::castlingKeys[castlingRights_];
+ 
+  if (enPassantSquare_ != Square::NONE) {
+    hash_ ^= Zobrist::enPassantKeys[fileOf(enPassantSquare_)];
+  }
+ 
+  if (currentTurn_ == Color::BLACK) {
+    hash_ ^= Zobrist::sideKey;
+  }
 }
 
 
@@ -242,6 +266,10 @@ int Board::fullmoveNumber() const {
   return fullmoveNumber_;
 }
 
+uint64_t Board::hash() const {
+  return hash_;
+}
+
 
 
 
@@ -255,6 +283,8 @@ void Board::putPiece(Color color, Piece piece, Square square) {
 
   pieceMailbox_[squareIndex] = piece;
   colorMailbox_[squareIndex] = color;
+
+  hash_ ^= Zobrist::pieceKeys[colorIndex][pieceIndex][squareIndex];
 }
 
 void Board::removePiece(Square square) {
@@ -273,18 +303,32 @@ void Board::removePiece(Square square) {
   clearBit(colorBitboards_[colorIndex], square);
 
   pieceMailbox_[squareIndex] = Piece::NONE;
+
+  hash_ ^= Zobrist::pieceKeys[colorIndex][pieceIndex][squareIndex]; 
 }
 
 void Board::flipCurrentTurn() {
   currentTurn_ = (currentTurn_ == Color::WHITE) ? Color::BLACK : Color::WHITE;
+  hash_ ^= Zobrist::sideKey;
 }
 
 void Board::setCastlingRights(int rights) {
+  hash_ ^= Zobrist::castlingKeys[castlingRights_];
   castlingRights_ = rights;
+  hash_ ^= Zobrist::castlingKeys[castlingRights_];
+
 }
 
 void Board::setEnPassantSquare(Square square) {
+  if (enPassantSquare_ != Square::NONE) {
+    hash_ ^= Zobrist::enPassantKeys[fileOf(enPassantSquare_)];
+  }
+
   enPassantSquare_ = square;
+
+  if (enPassantSquare_ != Square::NONE) {
+    hash_ ^= Zobrist::enPassantKeys[fileOf(enPassantSquare_)];
+  }
 }
 
 void Board::setHalfmoveClock(int count) {

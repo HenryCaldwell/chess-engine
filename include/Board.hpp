@@ -43,6 +43,7 @@ public:
   Square enPassantSquare() const;
   int halfmoveClock() const;
   int fullmoveNumber() const;
+  uint64_t hash() const;
 
 
 
@@ -79,6 +80,7 @@ private:
   Square enPassantSquare_;
   int halfmoveClock_;
   int fullmoveNumber_;
+  uint64_t hash_;
 
   std::array<Piece, NUM_SQUARES> pieceMailbox_;
   std::array<Color, NUM_SQUARES> colorMailbox_;
