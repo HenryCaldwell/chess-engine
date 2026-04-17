@@ -1,4 +1,5 @@
 #include "MoveGen.hpp"
+#include "Attacks.hpp"
 
 namespace MoveGen {
   static void addMoveIfLegal(Board& board, std::vector<Move>& moves, const Move& move) {
