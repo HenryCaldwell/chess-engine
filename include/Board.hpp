@@ -50,6 +50,9 @@ public:
   void putPiece(Color color, Piece piece, Square square);
   void removePiece(Square square);
   void flipCurrentTurn();
+  void setCastlingRights(int rights);
+  void setEnPassantSquare(Square square);
+  void setHalfmoveClock(int count);
 
 
 

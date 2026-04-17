@@ -279,6 +279,18 @@ void Board::flipCurrentTurn() {
   currentTurn_ = (currentTurn_ == Color::WHITE) ? Color::BLACK : Color::WHITE;
 }
 
+void Board::setCastlingRights(int rights) {
+  castlingRights_ = rights;
+}
+
+void Board::setEnPassantSquare(Square square) {
+  enPassantSquare_ = square;
+}
+
+void Board::setHalfmoveClock(int count) {
+  halfmoveClock_ = count;
+}
+
 
 
 
