@@ -58,6 +58,14 @@ constexpr Square intToSquare(int i) {
   return static_cast<Square>(i);
 }
 
+constexpr Color intToColor(int i) {
+  return static_cast<Color>(i);
+}
+
+constexpr Piece intToPiece(int i) {
+  return static_cast<Piece>(i);
+}
+
 constexpr int fileOf(Square square) {
   return squareToInt(square) & 7;
 }
