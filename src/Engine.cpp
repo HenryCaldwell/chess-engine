@@ -229,9 +229,47 @@ namespace Engine {
     board.flipCurrentTurn();
   }
 
+  static int quiescence(Board& board, int alpha, int beta) {
+    int standPatScore = evaluate(board);
+
+    if (standPatScore >= beta) {
+      return beta;
+    }
+
+    if (standPatScore > alpha) {
+      alpha = standPatScore;
+    }
+
+    std::vector<Move> moves = MoveGen::generate(board);
+    std::sort(moves.begin(), moves.end(), [&board](const Move& moveA, const Move& moveB) {
+        return scoreMove(board, moveA) > scoreMove(board, moveB);
+    });
+
+    for (const Move& move : moves) {
+      if (!move.isCapture()) {
+        continue;
+      }
+
+      Board backup = board;
+      makeMove(board, move);
+      int score = -quiescence(board, -beta, -alpha);
+      board = backup;
+
+      if (score >= beta) {
+        return beta;
+      }
+
+      if (score > alpha) {
+        alpha = score;
+      }
+    }
+
+    return alpha;
+  }
+
   static int alphaBeta(Board& board, int depth, int alpha, int beta) {
     if (depth == 0) {
-      return evaluate(board);
+      return quiescence(board, alpha, beta);
     }
 
     std::vector<Move> moves = MoveGen::generate(board);
