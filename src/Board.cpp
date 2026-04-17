@@ -213,7 +213,7 @@ Color Board::colorOn(Square square) const {
 
 
 
-Color Board::colorToMove() const {
+Color Board::currentTurn() const {
   return currentTurn_;
 }
 

@@ -36,7 +36,7 @@ public:
 
 
 
-  Color colorToMove() const;
+  Color currentTurn() const;
   int castlingRights() const;
   Square enPassantSquare() const;
   int halfmoveClock() const;
