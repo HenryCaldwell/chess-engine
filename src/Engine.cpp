@@ -1,9 +1,14 @@
 #include "Engine.hpp"
 #include "MoveGen.hpp"
+#include "TranspositionTable.hpp"
 #include <algorithm>
 #include <limits>
 
 namespace Engine {
+  static TranspositionTable transpositionTable;
+
+  static constexpr int TT_MOVE_BONUS = 100000;
+
   static constexpr int PIECE_VALUES[] = { 100, 320, 330, 500, 900, 100000};
 
   static constexpr int PAWN_TABLE[NUM_SQUARES] = {
@@ -108,8 +113,12 @@ namespace Engine {
     return (board.currentTurn() == Color::WHITE) ? score : -score;
   }
 
-  static int scoreMove(const Board& board, const Move& move) {
+  static int scoreMove(const Board& board, const Move& move, const Move& ttMove) {
     int score = 0;
+
+    if (move == ttMove && !ttMove.isNull()) {
+      score += TT_MOVE_BONUS;
+    }
 
     if (move.isCapture()) {
       Piece capturedPiece = board.pieceOn(move.to);
@@ -241,8 +250,10 @@ namespace Engine {
     }
 
     std::vector<Move> moves = MoveGen::generate(board);
-    std::sort(moves.begin(), moves.end(), [&board](const Move& moveA, const Move& moveB) {
-        return scoreMove(board, moveA) > scoreMove(board, moveB);
+
+    Move ttMove;
+    std::sort(moves.begin(), moves.end(), [&board, &ttMove](const Move& moveA, const Move& moveB) {
+      return scoreMove(board, moveA, ttMove) > scoreMove(board, moveB, ttMove);
     });
 
     for (const Move& move : moves) {
@@ -272,6 +283,14 @@ namespace Engine {
       return quiescence(board, alpha, beta);
     }
 
+    int originalAlpha = alpha;
+
+    int ttScore;
+    Move ttMove;
+    if (transpositionTable.probe(board.hash(), depth, alpha, beta, ttScore, ttMove)) {
+      return ttScore;
+    }
+
     std::vector<Move> moves = MoveGen::generate(board);
 
     if (moves.empty()) {
@@ -282,9 +301,11 @@ namespace Engine {
       return 0;
     }
 
-    std::sort(moves.begin(), moves.end(), [&board](const Move& moveA, const Move& moveB) {
-      return scoreMove(board, moveA) > scoreMove(board, moveB);
+    std::sort(moves.begin(), moves.end(), [&board, &ttMove](const Move& moveA, const Move& moveB) {
+      return scoreMove(board, moveA, ttMove) > scoreMove(board, moveB, ttMove);
     });
+
+    Move bestMove = moves[0];
 
     for (const Move& move : moves) {
       Board backup = board;
@@ -293,13 +314,19 @@ namespace Engine {
       board = backup;
 
       if (score >= beta) {
+        transpositionTable.store(board.hash(), depth, beta, HashFlag::BETA, move);
+
         return beta;
       }
 
       if (score > alpha) {
         alpha = score;
+        bestMove = move;
       }
     }
+
+    HashFlag flag = (alpha > originalAlpha) ? HashFlag::EXACT : HashFlag::ALPHA;
+    transpositionTable.store(board.hash(), depth, alpha, flag, bestMove);
 
     return alpha;
   }
@@ -314,8 +341,12 @@ namespace Engine {
         return bestMove;
       }
 
-      std::sort(moves.begin(), moves.end(), [&board](const Move& moveA, const Move& moveB) {
-        return scoreMove(board, moveA) > scoreMove(board, moveB);
+      int ttScore;
+      Move ttMove;
+      transpositionTable.probe(board.hash(), 0, 0, 0, ttScore, ttMove);
+
+      std::sort(moves.begin(), moves.end(), [&board, &ttMove](const Move& moveA, const Move& moveB) {
+        return scoreMove(board, moveA, ttMove) > scoreMove(board, moveB, ttMove);
       });
 
       int currentBestScore = std::numeric_limits<int>::min();
