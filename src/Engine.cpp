@@ -291,6 +291,20 @@ namespace Engine {
       return ttScore;
     }
 
+    if (depth >= 3 && !board.isInCheck(board.currentTurn())) {
+      Board backup = board;
+      board.flipCurrentTurn();
+      board.setEnPassantSquare(Square::NONE);
+
+      int nullScore = -alphaBeta(board, depth - 3, -beta, -beta + 1);
+
+      board = backup;
+
+      if (nullScore >= beta) {
+        return beta;
+      }
+    }
+
     std::vector<Move> moves = MoveGen::generate(board);
 
     if (moves.empty()) {
