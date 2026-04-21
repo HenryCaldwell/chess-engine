@@ -320,11 +320,22 @@ namespace Engine {
     });
 
     Move bestMove = moves[0];
+    int movesSearched = 0;
 
     for (const Move& move : moves) {
       Board backup = board;
       makeMove(board, move);
-      int score = -alphaBeta(board, depth - 1, -beta, -alpha);
+
+      int reduction = 0;
+      if (movesSearched >= 3 && depth >= 3 && !move.isCapture() && !move.isPromotion()) {
+        reduction = 1;
+      }
+
+      int score = -alphaBeta(board, depth - 1 - reduction, -beta, -alpha);
+      if (reduction > 0 && score > alpha) {
+        score = -alphaBeta(board, depth - 1, -beta, -alpha);
+      }
+
       board = backup;
 
       if (score >= beta) {
@@ -337,6 +348,8 @@ namespace Engine {
         alpha = score;
         bestMove = move;
       }
+
+      movesSearched++;
     }
 
     HashFlag flag = (alpha > originalAlpha) ? HashFlag::EXACT : HashFlag::ALPHA;
