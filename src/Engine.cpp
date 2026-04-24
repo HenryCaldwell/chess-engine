@@ -5,13 +5,17 @@
 #include <limits>
 
 namespace Engine {
+  // Shared transposition table reused across searches for move ordering and cached bounds
   static TranspositionTable transpositionTable;
 
+  // Large bonus so the transposition table move is searched first
   static constexpr int TT_MOVE_BONUS = 100000;
 
+  // Aspiration window size in centipawns around the previous iteration score
   static constexpr int WINDOW_SIZE = 50;
 
-  static constexpr int PIECE_VALUES[] = { 100, 320, 330, 500, 900, 100000};
+  // Basic material values in centipawns
+  static constexpr int PIECE_VALUES[] = { 100, 320, 330, 500, 900, 100000 };
 
   static constexpr int PAWN_TABLE[NUM_SQUARES] = {
      0,  0,   0,   0,   0,   0,   0,   0,
@@ -94,9 +98,12 @@ namespace Engine {
 
 
   int evaluate(const Board& board) {
+    // Positive score means White is better before converting to side-to-move perspective
     int score = 0;
 
+    // Add material and positional bonuses for each piece type
     for (int pieceIndex = 0; pieceIndex < NUM_PIECES; pieceIndex++) {
+      // Score white pieces positively
       Bitboard whitePieces = board.pieceBitboard(Color::WHITE, intToPiece(pieceIndex));
       while (whitePieces) {
         int square = popLowestBit(whitePieces);
@@ -104,6 +111,7 @@ namespace Engine {
         score += PIECE_SQUARE_TABLES[pieceIndex][square];
       }
 
+      // Score black pieces negatively
       Bitboard blackPieces = board.pieceBitboard(Color::BLACK, intToPiece(pieceIndex));
       while (blackPieces) {
         int square = popLowestBit(blackPieces);
@@ -112,16 +120,20 @@ namespace Engine {
       }
     }
 
+    // Negamax expects evaluation from the side-to-move perspective
     return (board.currentTurn() == Color::WHITE) ? score : -score;
   }
 
   static int scoreMove(const Board& board, const Move& move, const Move& ttMove) {
+    // Heuristic score used only for move ordering, not final evaluation
     int score = 0;
 
+    // Search the TT move first to maximize alpha-beta pruning
     if (move == ttMove && !ttMove.isNull()) {
       score += TT_MOVE_BONUS;
     }
 
+    // MVV-LVA style ordering lets valuable captures by cheap pieces get searched early
     if (move.isCapture()) {
       Piece capturedPiece = board.pieceOn(move.to);
       Piece movingPiece = board.pieceOn(move.from);
@@ -135,6 +147,7 @@ namespace Engine {
       }
     }
 
+    // Promotions are searched early because they are tactically forcing
     if (move.isPromotion()) {
       score += PIECE_VALUES[pieceToInt(Piece::QUEEN)];
     }
@@ -241,12 +254,15 @@ namespace Engine {
   }
 
   static int quiescence(Board& board, int alpha, int beta) {
+    // Stand-pat score assumes no more captures are made
     int standPatScore = evaluate(board);
 
+    // If static eval already exceeds beta, prune immediately
     if (standPatScore >= beta) {
       return beta;
     }
 
+    // If the quiet position improves alpha, update alpha
     if (standPatScore > alpha) {
       alpha = standPatScore;
     }
@@ -254,24 +270,29 @@ namespace Engine {
     std::vector<Move> moves = MoveGen::generate(board);
 
     Move ttMove;
+    // Search promising captures first to stabilize tactical leaf positions quickly
     std::sort(moves.begin(), moves.end(), [&board, &ttMove](const Move& moveA, const Move& moveB) {
       return scoreMove(board, moveA, ttMove) > scoreMove(board, moveB, ttMove);
     });
 
     for (const Move& move : moves) {
+      // Quiescence ignores quiet moves to limit the horizon search
       if (!move.isCapture()) {
         continue;
       }
 
+      // Try capture and flip perspective with negamax
       Board backup = board;
       makeMove(board, move);
       int score = -quiescence(board, -beta, -alpha);
       board = backup;
 
+      // If the capture beats beta, prune the remaining captures
       if (score >= beta) {
         return beta;
       }
 
+      // If the capture improves alpha, update alpha
       if (score > alpha) {
         alpha = score;
       }
@@ -281,27 +302,34 @@ namespace Engine {
   }
 
   static int alphaBeta(Board& board, int depth, int alpha, int beta) {
+    // At the depth limit, switch to quiescence to resolve forcing captures
     if (depth == 0) {
       return quiescence(board, alpha, beta);
     }
 
+    // Save original alpha so TT can distinguish exact scores from bounds
     int originalAlpha = alpha;
 
     int ttScore;
     Move ttMove;
+    // Probe TT for reusable score/bound and preferred move ordering
     if (transpositionTable.probe(board.hash(), depth, alpha, beta, ttScore, ttMove)) {
       return ttScore;
     }
 
+    // Null move pruning checks if even passing the turn still beats beta so real moves can be pruned
     if (depth >= 3 && !board.isInCheck(board.currentTurn())) {
       Board backup = board;
+      // Make a null move by only flipping turn and clearing en passant
       board.flipCurrentTurn();
       board.setEnPassantSquare(Square::NONE);
 
+      // Reduced zero-window search checks if even passing still beats beta
       int nullScore = -alphaBeta(board, depth - 3, -beta, -beta + 1);
 
       board = backup;
 
+      // If the null move beats beta, prune the node
       if (nullScore >= beta) {
         return beta;
       }
@@ -309,14 +337,18 @@ namespace Engine {
 
     std::vector<Move> moves = MoveGen::generate(board);
 
+    // No legal moves means checkmate or stalemate
     if (moves.empty()) {
+      // Checkmate
       if (board.isInCheck(board.currentTurn())) {
         return -100000 + (100 - depth);
       }
 
+      // Stalemate
       return 0;
     }
 
+    // Good moves are searched first so alpha-beta can prune more aggressively
     std::sort(moves.begin(), moves.end(), [&board, &ttMove](const Move& moveA, const Move& moveB) {
       return scoreMove(board, moveA, ttMove) > scoreMove(board, moveB, ttMove);
     });
@@ -329,16 +361,20 @@ namespace Engine {
       makeMove(board, move);
 
       int score;
+      // The first move gets a full-window search because it is likely best
       if (movesSearched == 0) {
         score = -alphaBeta(board, depth - 1, -beta, -alpha);
       } else {
         int reduction = 0;
+        // LMR reduces quiet late moves because they are less likely to improve alpha
         if (movesSearched >= 3 && depth >= 3 && !move.isCapture() && !move.isPromotion()) {
           reduction = 1;
         }
 
+        // PVS uses a cheap zero-window search to check whether the move can beat alpha
         score = -alphaBeta(board, depth - 1 - reduction, -alpha - 1, -alpha);
 
+        // If the probe beats alpha, re-search full-window for the real score
         if (score > alpha) {
           score = -alphaBeta(board, depth - 1, -beta, -alpha);
         }
@@ -346,12 +382,14 @@ namespace Engine {
 
       board = backup;
 
+      // If the move beats beta, prune the remaining moves
       if (score >= beta) {
         transpositionTable.store(board.hash(), depth, beta, HashFlag::BETA, move);
 
         return beta;
       }
 
+      // If the move improves alpha, update alpha and store the best move
       if (score > alpha) {
         alpha = score;
         bestMove = move;
@@ -360,6 +398,7 @@ namespace Engine {
       movesSearched++;
     }
 
+    // Store an exact score if alpha improved, otherwise store an alpha bound
     HashFlag flag = (alpha > originalAlpha) ? HashFlag::EXACT : HashFlag::ALPHA;
     transpositionTable.store(board.hash(), depth, alpha, flag, bestMove);
 
@@ -368,8 +407,10 @@ namespace Engine {
 
   Move search(Board& board, int depth) {
     Move bestMove;
+    // Previous completed iteration score seeds the next aspiration window
     int previousScore = 0;
 
+    // Iterative deepening searches from shallow depths up to the requested depth
     for (int currentDepth = 1; currentDepth <= depth; currentDepth++) {
       std::vector<Move> moves = MoveGen::generate(board);
 
@@ -379,40 +420,49 @@ namespace Engine {
 
       int ttScore;
       Move ttMove;
+      // Pull the root TT move so it gets searched first
       transpositionTable.probe(board.hash(), 0, 0, 0, ttScore, ttMove);
 
+      // Order root moves before searching this iteration
       std::sort(moves.begin(), moves.end(), [&board, &ttMove](const Move& moveA, const Move& moveB) {
         return scoreMove(board, moveA, ttMove) > scoreMove(board, moveB, ttMove);
       });
 
+      // The first iteration uses a full window and later iterations use aspiration windows
       int alpha = (currentDepth == 1) ? std::numeric_limits<int>::min() + 1 : previousScore - WINDOW_SIZE;
       int beta = (currentDepth == 1) ? std::numeric_limits<int>::max() : previousScore + WINDOW_SIZE;
+      // Save original lower bound so fail-low detection ignores alpha updates
       int originalAlpha = alpha;
 
       int currentBestScore = std::numeric_limits<int>::min();
       Move currentBestMove = moves[0];
 
       for (const Move& move : moves) {
+        // Try each root move and search the resulting position
         Board backup = board;
         makeMove(board, move);
         int score = -alphaBeta(board, currentDepth - 1, -beta, -alpha);
         board = backup;
 
+        // Store the best move found for this completed depth
         if (score > currentBestScore) {
           currentBestScore = score;
           currentBestMove = move;
         }
 
+        // If the move improves alpha, update alpha for the remaining root searches
         if (score > alpha) {
           alpha = score;
         }
       }
 
+      // If the score falls outside the aspiration window, re-search with a full window
       if (currentBestScore <= originalAlpha || currentBestScore >= beta) {
         currentBestScore = std::numeric_limits<int>::min();
         currentBestMove = moves[0];
 
         for (const Move& move : moves) {
+          // Full-window re-search recovers the exact score after aspiration failure
           Board backup = board;
           makeMove(board, move);
           int score = -alphaBeta(board, currentDepth - 1, std::numeric_limits<int>::min() + 1, std::numeric_limits<int>::max());
@@ -425,6 +475,7 @@ namespace Engine {
         }
       }
 
+      // Store this depth result for the next aspiration window and final best move
       previousScore = currentBestScore;
       bestMove = currentBestMove;
     }
