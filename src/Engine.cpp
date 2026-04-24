@@ -267,7 +267,7 @@ namespace Engine {
       alpha = standPatScore;
     }
 
-    std::vector<Move> moves = MoveGen::generate(board);
+    std::vector<Move> moves = MoveGen::generateCaptures(board);
 
     Move ttMove;
     // Search promising captures first to stabilize tactical leaf positions quickly
@@ -335,7 +335,7 @@ namespace Engine {
       }
     }
 
-    std::vector<Move> moves = MoveGen::generate(board);
+    std::vector<Move> moves = MoveGen::generateMoves(board);
 
     // No legal moves means checkmate or stalemate
     if (moves.empty()) {
@@ -412,7 +412,7 @@ namespace Engine {
 
     // Iterative deepening searches from shallow depths up to the requested depth
     for (int currentDepth = 1; currentDepth <= depth; currentDepth++) {
-      std::vector<Move> moves = MoveGen::generate(board);
+      std::vector<Move> moves = MoveGen::generateMoves(board);
 
       if (moves.empty()) {
         return bestMove;

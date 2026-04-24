@@ -3,6 +3,6 @@
 #include <vector>
 
 namespace MoveGen {
-  std::vector<Move> generate(Board& board);
+  std::vector<Move> generateMoves(Board& board);
   std::vector<Move> generateCaptures(Board& board);
 }

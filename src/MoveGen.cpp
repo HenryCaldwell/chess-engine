@@ -478,7 +478,7 @@ namespace MoveGen {
 
   
 
-  std::vector<Move> generate(Board& board) {
+  std::vector<Move> generateMoves(Board& board) {
     std::vector<Move> moves;
     moves.reserve(256);
 
