@@ -9,6 +9,8 @@ namespace Engine {
 
   static constexpr int TT_MOVE_BONUS = 100000;
 
+  static constexpr int WINDOW_SIZE = 50;
+
   static constexpr int PIECE_VALUES[] = { 100, 320, 330, 500, 900, 100000};
 
   static constexpr int PAWN_TABLE[NUM_SQUARES] = {
@@ -360,6 +362,7 @@ namespace Engine {
 
   Move search(Board& board, int depth) {
     Move bestMove;
+    int previousScore = 0;
 
     for (int currentDepth = 1; currentDepth <= depth; currentDepth++) {
       std::vector<Move> moves = MoveGen::generate(board);
@@ -376,21 +379,47 @@ namespace Engine {
         return scoreMove(board, moveA, ttMove) > scoreMove(board, moveB, ttMove);
       });
 
+      int alpha = (currentDepth == 1) ? std::numeric_limits<int>::min() + 1 : previousScore - WINDOW_SIZE;
+      int beta = (currentDepth == 1) ? std::numeric_limits<int>::max() : previousScore + WINDOW_SIZE;
+      int originalAlpha = alpha;
+
       int currentBestScore = std::numeric_limits<int>::min();
       Move currentBestMove = moves[0];
 
       for (const Move& move : moves) {
         Board backup = board;
         makeMove(board, move);
-        int score = -alphaBeta(board, currentDepth - 1, std::numeric_limits<int>::min() + 1, std::numeric_limits<int>::max());
+        int score = -alphaBeta(board, currentDepth - 1, -beta, -alpha);
         board = backup;
 
         if (score > currentBestScore) {
           currentBestScore = score;
           currentBestMove = move;
         }
+
+        if (score > alpha) {
+          alpha = score;
+        }
       }
 
+      if (currentBestScore <= originalAlpha || currentBestScore >= beta) {
+        currentBestScore = std::numeric_limits<int>::min();
+        currentBestMove = moves[0];
+
+        for (const Move& move : moves) {
+          Board backup = board;
+          makeMove(board, move);
+          int score = -alphaBeta(board, currentDepth - 1, std::numeric_limits<int>::min() + 1, std::numeric_limits<int>::max());
+          board = backup;
+
+          if (score > currentBestScore) {
+            currentBestScore = score;
+            currentBestMove = move;
+          }
+        }
+      }
+
+      previousScore = currentBestScore;
       bestMove = currentBestMove;
     }
 
