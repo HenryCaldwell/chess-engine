@@ -337,6 +337,145 @@ namespace MoveGen {
   }
 
 
+
+
+  static void generatePawnCaptures(Board& board, std::vector<Move>& moves) {
+    Color currentColor = board.currentTurn();
+    Color enemyColor = (currentColor == Color::WHITE) ? Color::BLACK : Color::WHITE;
+    Bitboard currentPawns = board.pieceBitboard(currentColor, Piece::PAWN);
+    Bitboard enemyColorBitboard = board.colorBitboard(enemyColor);
+    Bitboard promotionRank = (currentColor == Color::WHITE) ? RANK_8 : RANK_1;
+
+    // En passant
+    Square enPassantSquare = board.enPassantSquare();
+    if (enPassantSquare != Square::NONE) {
+      Bitboard enPassantAttackers = Attacks::pawnAttacks[colorToInt(enemyColor)][squareToInt(enPassantSquare)] & currentPawns;
+      
+      while (enPassantAttackers) {
+        int fromIndex = popLowestBit(enPassantAttackers);
+        Square fromSquare = intToSquare(fromIndex);
+        addMoveIfLegal(board, moves, Move(fromSquare, enPassantSquare, MoveFlag::EN_PASSANT));
+      }
+    }
+
+    // Pawn captures
+    while (currentPawns) {
+      int fromIndex = popLowestBit(currentPawns);
+      Square fromSquare = intToSquare(fromIndex);
+      Bitboard attacks = Attacks::pawnAttacks[colorToInt(currentColor)][fromIndex] & enemyColorBitboard;
+
+      while (attacks) {
+        int toIndex = popLowestBit(attacks);
+        Square toSquare = intToSquare(toIndex);
+
+        if (squareBitboard(toSquare) & promotionRank) {
+          addMoveIfLegal(board, moves, Move(fromSquare, toSquare, MoveFlag::PROMOTE_KNIGHT));
+          addMoveIfLegal(board, moves, Move(fromSquare, toSquare, MoveFlag::PROMOTE_BISHOP));
+          addMoveIfLegal(board, moves, Move(fromSquare, toSquare, MoveFlag::PROMOTE_ROOK));
+          addMoveIfLegal(board, moves, Move(fromSquare, toSquare, MoveFlag::PROMOTE_QUEEN));
+        } else {
+          addMoveIfLegal(board, moves, Move(fromSquare, toSquare, MoveFlag::CAPTURE));
+        }
+      }
+    }
+  }
+
+  static void generateKnightCaptures(Board& board, std::vector<Move>& moves) {
+    Color currentColor = board.currentTurn();
+    Color enemyColor = (currentColor == Color::WHITE) ? Color::BLACK : Color::WHITE;
+    Bitboard currentKnights = board.pieceBitboard(currentColor, Piece::KNIGHT);
+    Bitboard enemyColorBitboard = board.colorBitboard(enemyColor);
+
+    while (currentKnights) {
+      int fromIndex = popLowestBit(currentKnights);
+      Square fromSquare = intToSquare(fromIndex);
+      Bitboard targets = Attacks::knightAttacks[fromIndex] & enemyColorBitboard;
+
+      while (targets) {
+        int toIndex = popLowestBit(targets);
+        Square toSquare = intToSquare(toIndex);
+        addMoveIfLegal(board, moves, Move(fromSquare, toSquare, MoveFlag::CAPTURE));
+      }
+    }
+  }
+
+  static void generateBishopCaptures(Board& board, std::vector<Move>& moves) {
+    Color currentColor = board.currentTurn();
+    Color enemyColor = (currentColor == Color::WHITE) ? Color::BLACK : Color::WHITE;
+    Bitboard currentBishops = board.pieceBitboard(currentColor, Piece::BISHOP);
+    Bitboard enemyColorBitboard = board.colorBitboard(enemyColor);
+    Bitboard occupiedBitboard = board.allBitboard();
+
+    while (currentBishops) {
+      int fromIndex = popLowestBit(currentBishops);
+      Square fromSquare = intToSquare(fromIndex);
+      Bitboard targets = Attacks::bishopAttacks(occupiedBitboard, fromSquare) & enemyColorBitboard;
+
+      while (targets) {
+        int toIndex = popLowestBit(targets);
+        Square toSquare = intToSquare(toIndex);
+        addMoveIfLegal(board, moves, Move(fromSquare, toSquare, MoveFlag::CAPTURE));
+      }
+    }
+  }
+
+  static void generateRookCaptures(Board& board, std::vector<Move>& moves) {
+    Color currentColor = board.currentTurn();
+    Color enemyColor = (currentColor == Color::WHITE) ? Color::BLACK : Color::WHITE;
+    Bitboard currentRooks = board.pieceBitboard(currentColor, Piece::ROOK);
+    Bitboard enemyColorBitboard = board.colorBitboard(enemyColor);
+    Bitboard occupiedBitboard = board.allBitboard();
+
+    while (currentRooks) {
+      int fromIndex = popLowestBit(currentRooks);
+      Square fromSquare = intToSquare(fromIndex);
+      Bitboard targets = Attacks::rookAttacks(occupiedBitboard, fromSquare) & enemyColorBitboard;
+
+      while (targets) {
+        int toIndex = popLowestBit(targets);
+        Square toSquare = intToSquare(toIndex);
+        addMoveIfLegal(board, moves, Move(fromSquare, toSquare, MoveFlag::CAPTURE));
+      }
+    }
+  }
+
+  static void generateQueenCaptures(Board& board, std::vector<Move>& moves) {
+    Color currentColor = board.currentTurn();
+    Color enemyColor = (currentColor == Color::WHITE) ? Color::BLACK : Color::WHITE;
+    Bitboard currentQueens = board.pieceBitboard(currentColor, Piece::QUEEN);
+    Bitboard enemyColorBitboard = board.colorBitboard(enemyColor);
+    Bitboard occupiedBitboard = board.allBitboard();
+
+    while (currentQueens) {
+      int fromIndex = popLowestBit(currentQueens);
+      Square fromSquare = intToSquare(fromIndex);
+      Bitboard targets = Attacks::queenAttacks(occupiedBitboard, fromSquare) & enemyColorBitboard;
+
+      while (targets) {
+        int toIndex = popLowestBit(targets);
+        Square toSquare = intToSquare(toIndex);
+        addMoveIfLegal(board, moves, Move(fromSquare, toSquare, MoveFlag::CAPTURE));
+      }
+    }
+  }
+
+  static void generateKingCaptures(Board& board, std::vector<Move>& moves) {
+    Color currentColor = board.currentTurn();
+    Color enemyColor = (currentColor == Color::WHITE) ? Color::BLACK : Color::WHITE;
+    Bitboard enemyColorBitboard = board.colorBitboard(enemyColor);
+    Square kingSquare = board.findKing(currentColor);
+    int kingIndex = squareToInt(kingSquare);
+
+    Bitboard targets = Attacks::kingAttacks[kingIndex] & enemyColorBitboard;
+
+    while (targets) {
+      int toIndex = popLowestBit(targets);
+      Square toSquare = intToSquare(toIndex);
+      addMoveIfLegal(board, moves, Move(kingSquare, toSquare, MoveFlag::CAPTURE));
+    }
+  }
+
+
   
 
   std::vector<Move> generate(Board& board) {
@@ -349,6 +488,20 @@ namespace MoveGen {
     generateRookMoves(board, moves);
     generateQueenMoves(board, moves);
     generateKingMoves(board, moves);
+
+    return moves;
+  }
+
+  std::vector<Move> generateCaptures(Board& board) {
+    std::vector<Move> moves;
+    moves.reserve(64);
+
+    generatePawnCaptures(board, moves);
+    generateKnightCaptures(board, moves);
+    generateBishopCaptures(board, moves);
+    generateRookCaptures(board, moves);
+    generateQueenCaptures(board, moves);
+    generateKingCaptures(board, moves);
 
     return moves;
   }

@@ -4,4 +4,5 @@
 
 namespace MoveGen {
   std::vector<Move> generate(Board& board);
+  std::vector<Move> generateCaptures(Board& board);
 }
