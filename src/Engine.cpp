@@ -328,14 +328,20 @@ namespace Engine {
       Board backup = board;
       makeMove(board, move);
 
-      int reduction = 0;
-      if (movesSearched >= 3 && depth >= 3 && !move.isCapture() && !move.isPromotion()) {
-        reduction = 1;
-      }
-
-      int score = -alphaBeta(board, depth - 1 - reduction, -beta, -alpha);
-      if (reduction > 0 && score > alpha) {
+      int score;
+      if (movesSearched == 0) {
         score = -alphaBeta(board, depth - 1, -beta, -alpha);
+      } else {
+        int reduction = 0;
+        if (movesSearched >= 3 && depth >= 3 && !move.isCapture() && !move.isPromotion()) {
+          reduction = 1;
+        }
+
+        score = -alphaBeta(board, depth - 1 - reduction, -alpha - 1, -alpha);
+
+        if (score > alpha) {
+          score = -alphaBeta(board, depth - 1, -beta, -alpha);
+        }
       }
 
       board = backup;
