@@ -351,38 +351,37 @@ Square Board::findKing(Color color) const {
 
 
 
-bool Board:: isAttacked(Square square, Color attackingColor) const {
-  int squareIndex = squareToInt(square);
+bool Board::isAttacked(Square square, Color attackingColor) const {
   int attackerIndex = colorToInt(attackingColor);
   Bitboard occupiedBitboard = allBitboard();
 
   // Pawn attacks
   Color defendingColor = (attackingColor == Color::WHITE) ? Color::BLACK : Color::WHITE;
-  if (Attacks::pawnAttacks[colorToInt(defendingColor)][squareIndex] & pieceBitboards_[attackerIndex][pieceToInt(Piece::PAWN)]) {
+  if (Attacks::pawnAttacks(defendingColor, square) & pieceBitboards_[attackerIndex][pieceToInt(Piece::PAWN)]) {
     return true;
   }
 
   // Knight attacks
-  if (Attacks::knightAttacks[squareIndex] & pieceBitboards_[attackerIndex][pieceToInt(Piece::KNIGHT)]) {
+  if (Attacks::knightAttacks(square) & pieceBitboards_[attackerIndex][pieceToInt(Piece::KNIGHT)]) {
     return true;
   }
 
   // Bishop/queen attacks (diagonal)
   Bitboard bishopsAndQueens = pieceBitboards_[attackerIndex][pieceToInt(Piece::BISHOP)]
     | pieceBitboards_[attackerIndex][pieceToInt(Piece::QUEEN)];
-  if (Attacks::bishopAttacks(occupiedBitboard, square) & bishopsAndQueens) {
+  if (Attacks::bishopAttacks(square, occupiedBitboard) & bishopsAndQueens) {
     return true;
   }
 
   // Rook/queen attacks (straight)
   Bitboard rooksAndQueens = pieceBitboards_[attackerIndex][pieceToInt(Piece::ROOK)]
     | pieceBitboards_[attackerIndex][pieceToInt(Piece::QUEEN)];
-  if (Attacks::rookAttacks(occupiedBitboard, square) & rooksAndQueens) {
+  if (Attacks::rookAttacks(square, occupiedBitboard) & rooksAndQueens) {
     return true;
   }
 
   // King attacks
-  if (Attacks::kingAttacks[squareIndex] & pieceBitboards_[attackerIndex][pieceToInt(Piece::KING)]) {
+  if (Attacks::kingAttacks(square) & pieceBitboards_[attackerIndex][pieceToInt(Piece::KING)]) {
     return true;
   }
 

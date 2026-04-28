@@ -2,7 +2,6 @@
 #define ATTACKS_HPP
 
 #include "Bitboard.hpp"
-#include <array>
 
 namespace Attacks {
   void init();
@@ -10,19 +9,16 @@ namespace Attacks {
 
 
 
-  extern std::array<std::array<Bitboard, NUM_SQUARES>, NUM_COLORS> pawnAttacks;
-  extern std::array<Bitboard, NUM_SQUARES> knightAttacks;
-  extern std::array<Bitboard, NUM_SQUARES> kingAttacks;
+  Bitboard pawnAttacks(Color color, Square square);
+  Bitboard knightAttacks(Square square);
+  Bitboard kingAttacks(Square square);
 
 
 
-
-  Bitboard bishopAttacks(Bitboard bitboard, Square square);
-  Bitboard rookAttacks(Bitboard bitboard, Square square);
-
-  inline Bitboard queenAttacks(Bitboard bitboard, Square square) {
-    return bishopAttacks(bitboard, square) | rookAttacks(bitboard, square);
-  }
+  
+  Bitboard bishopAttacks(Square square, Bitboard occupancy);
+  Bitboard rookAttacks(Square square, Bitboard occupancy);
+  Bitboard queenAttacks(Square square, Bitboard occupancy);
 }
 
 #endif

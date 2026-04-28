@@ -143,7 +143,7 @@ namespace MoveGen {
     // En passant
     Square enPassantSquare = board.enPassantSquare();
     if (enPassantSquare != Square::NONE) {
-      Bitboard enPassantAttackers = Attacks::pawnAttacks[colorToInt(enemyColor)][squareToInt(enPassantSquare)] & currentPawns;
+      Bitboard enPassantAttackers = Attacks::pawnAttacks(enemyColor, enPassantSquare) & currentPawns;
       
       while (enPassantAttackers) {
         int fromIndex = popLowestBit(enPassantAttackers);
@@ -156,7 +156,7 @@ namespace MoveGen {
     while (currentPawns) {
       int fromIndex = popLowestBit(currentPawns);
       Square fromSquare = intToSquare(fromIndex);
-      Bitboard attacks = Attacks::pawnAttacks[colorToInt(currentColor)][fromIndex] & enemyColorBitboard;
+      Bitboard attacks = Attacks::pawnAttacks(currentColor, fromSquare) & enemyColorBitboard;
 
       while (attacks) {
         int toIndex = popLowestBit(attacks);
@@ -184,7 +184,7 @@ namespace MoveGen {
     while (currentKnights) {
       int fromIndex = popLowestBit(currentKnights);
       Square fromSquare = intToSquare(fromIndex);
-      Bitboard targets = Attacks::knightAttacks[fromIndex] & ~currentColorBitboard;
+      Bitboard targets = Attacks::knightAttacks(fromSquare) & ~currentColorBitboard;
 
       while (targets) {
         int toIndex = popLowestBit(targets);
@@ -210,7 +210,7 @@ namespace MoveGen {
     while (currentBishops) {
       int fromIndex = popLowestBit(currentBishops);
       Square fromSquare = intToSquare(fromIndex);
-      Bitboard targets = Attacks::bishopAttacks(occupiedBitboard, fromSquare) & ~currentColorBitboard;
+      Bitboard targets = Attacks::bishopAttacks(fromSquare, occupiedBitboard) & ~currentColorBitboard;
 
       while (targets) {
         int toIndex = popLowestBit(targets);
@@ -236,7 +236,7 @@ namespace MoveGen {
     while (currentRooks) {
       int fromIndex = popLowestBit(currentRooks);
       Square fromSquare = intToSquare(fromIndex);
-      Bitboard targets = Attacks::rookAttacks(occupiedBitboard, fromSquare) & ~currentColorBitboard;
+      Bitboard targets = Attacks::rookAttacks(fromSquare, occupiedBitboard) & ~currentColorBitboard;
 
       while (targets) {
         int toIndex = popLowestBit(targets);
@@ -262,7 +262,7 @@ namespace MoveGen {
     while (currentQueens) {
       int fromIndex = popLowestBit(currentQueens);
       Square fromSquare = intToSquare(fromIndex);
-      Bitboard targets = Attacks::queenAttacks(occupiedBitboard, fromSquare) & ~currentColorBitboard;
+      Bitboard targets = Attacks::queenAttacks(fromSquare, occupiedBitboard) & ~currentColorBitboard;
 
       while (targets) {
         int toIndex = popLowestBit(targets);
@@ -283,10 +283,9 @@ namespace MoveGen {
     Bitboard currentColorBitboard = board.colorBitboard(currentColor);
     Bitboard enemyColorBitboard = board.colorBitboard(enemyColor);
     Square kingSquare = board.findKing(currentColor);
-    int kingIndex = squareToInt(kingSquare);
 
     // King moves
-    Bitboard targets = Attacks::kingAttacks[kingIndex] & ~currentColorBitboard;
+    Bitboard targets = Attacks::kingAttacks(kingSquare) & ~currentColorBitboard;
 
     while (targets) {
       int toIndex = popLowestBit(targets);
@@ -349,7 +348,7 @@ namespace MoveGen {
     // En passant
     Square enPassantSquare = board.enPassantSquare();
     if (enPassantSquare != Square::NONE) {
-      Bitboard enPassantAttackers = Attacks::pawnAttacks[colorToInt(enemyColor)][squareToInt(enPassantSquare)] & currentPawns;
+      Bitboard enPassantAttackers = Attacks::pawnAttacks(enemyColor, enPassantSquare) & currentPawns;
       
       while (enPassantAttackers) {
         int fromIndex = popLowestBit(enPassantAttackers);
@@ -362,7 +361,7 @@ namespace MoveGen {
     while (currentPawns) {
       int fromIndex = popLowestBit(currentPawns);
       Square fromSquare = intToSquare(fromIndex);
-      Bitboard attacks = Attacks::pawnAttacks[colorToInt(currentColor)][fromIndex] & enemyColorBitboard;
+      Bitboard attacks = Attacks::pawnAttacks(currentColor, fromSquare) & enemyColorBitboard;
 
       while (attacks) {
         int toIndex = popLowestBit(attacks);
@@ -389,7 +388,7 @@ namespace MoveGen {
     while (currentKnights) {
       int fromIndex = popLowestBit(currentKnights);
       Square fromSquare = intToSquare(fromIndex);
-      Bitboard targets = Attacks::knightAttacks[fromIndex] & enemyColorBitboard;
+      Bitboard targets = Attacks::knightAttacks(fromSquare) & enemyColorBitboard;
 
       while (targets) {
         int toIndex = popLowestBit(targets);
@@ -409,7 +408,7 @@ namespace MoveGen {
     while (currentBishops) {
       int fromIndex = popLowestBit(currentBishops);
       Square fromSquare = intToSquare(fromIndex);
-      Bitboard targets = Attacks::bishopAttacks(occupiedBitboard, fromSquare) & enemyColorBitboard;
+      Bitboard targets = Attacks::bishopAttacks(fromSquare, occupiedBitboard) & enemyColorBitboard;
 
       while (targets) {
         int toIndex = popLowestBit(targets);
@@ -429,7 +428,7 @@ namespace MoveGen {
     while (currentRooks) {
       int fromIndex = popLowestBit(currentRooks);
       Square fromSquare = intToSquare(fromIndex);
-      Bitboard targets = Attacks::rookAttacks(occupiedBitboard, fromSquare) & enemyColorBitboard;
+      Bitboard targets = Attacks::rookAttacks(fromSquare, occupiedBitboard) & enemyColorBitboard;
 
       while (targets) {
         int toIndex = popLowestBit(targets);
@@ -449,7 +448,7 @@ namespace MoveGen {
     while (currentQueens) {
       int fromIndex = popLowestBit(currentQueens);
       Square fromSquare = intToSquare(fromIndex);
-      Bitboard targets = Attacks::queenAttacks(occupiedBitboard, fromSquare) & enemyColorBitboard;
+      Bitboard targets = Attacks::queenAttacks(fromSquare, occupiedBitboard) & enemyColorBitboard;
 
       while (targets) {
         int toIndex = popLowestBit(targets);
@@ -464,9 +463,8 @@ namespace MoveGen {
     Color enemyColor = (currentColor == Color::WHITE) ? Color::BLACK : Color::WHITE;
     Bitboard enemyColorBitboard = board.colorBitboard(enemyColor);
     Square kingSquare = board.findKing(currentColor);
-    int kingIndex = squareToInt(kingSquare);
 
-    Bitboard targets = Attacks::kingAttacks[kingIndex] & enemyColorBitboard;
+    Bitboard targets = Attacks::kingAttacks(kingSquare) & enemyColorBitboard;
 
     while (targets) {
       int toIndex = popLowestBit(targets);
