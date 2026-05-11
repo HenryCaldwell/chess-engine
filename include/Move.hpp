@@ -7,15 +7,17 @@
 
 enum class MoveFlag : int {
   QUIET = 0,
-  CAPTURE = 1,
-  DOUBLE_PAWN = 2,
-  EN_PASSANT = 3,
-  CASTLE_KING = 4,
-  CASTLE_QUEEN = 5,
-  PROMOTE_KNIGHT = 6,
-  PROMOTE_BISHOP = 7,
-  PROMOTE_ROOK = 8,
-  PROMOTE_QUEEN = 9
+  CAPTURE = 1 << 0,
+  DOUBLE_PAWN = 1 << 1,
+  EN_PASSANT = 1 << 2,
+  CASTLE_KING = 1 << 3,
+  CASTLE_QUEEN = 1 << 4,
+  PROMOTE_KNIGHT = 1 << 5,
+  PROMOTE_BISHOP = 1 << 6,
+  PROMOTE_ROOK = 1 << 7,
+  PROMOTE_QUEEN = 1 << 8,
+  CHECK = 1 << 9,
+  DOUBLE_CHECK = 1 << 10
 };
 
 
@@ -40,18 +42,34 @@ struct Move {
 
   
   bool isPromotion() const {
-    return flag == MoveFlag::PROMOTE_KNIGHT
-      || flag == MoveFlag::PROMOTE_BISHOP
-      || flag == MoveFlag::PROMOTE_ROOK
-      || flag == MoveFlag::PROMOTE_QUEEN;
+    return static_cast<int>(flag) & (
+      static_cast<int>(MoveFlag::PROMOTE_KNIGHT) |
+      static_cast<int>(MoveFlag::PROMOTE_BISHOP) |
+      static_cast<int>(MoveFlag::PROMOTE_ROOK) |
+      static_cast<int>(MoveFlag::PROMOTE_QUEEN)
+    );
   }
 
   bool isCapture() const {
-    return flag == MoveFlag::CAPTURE || flag == MoveFlag::EN_PASSANT;
+    return static_cast<int>(flag) & (
+      static_cast<int>(MoveFlag::CAPTURE) |
+      static_cast<int>(MoveFlag::EN_PASSANT)
+    );
   }
 
   bool isCastle() const {
-    return flag == MoveFlag::CASTLE_KING || flag == MoveFlag::CASTLE_QUEEN;
+    return static_cast<int>(flag) & (
+      static_cast<int>(MoveFlag::CASTLE_KING) |
+      static_cast<int>(MoveFlag::CASTLE_QUEEN)
+    );
+  }
+
+  bool isCheck() const {
+    return static_cast<int>(flag) & static_cast<int>(MoveFlag::CHECK);
+  }
+
+  bool isDoubleCheck() const {
+    return static_cast<int>(flag) & static_cast<int>(MoveFlag::DOUBLE_CHECK);
   }
 
   bool isNull() const {
@@ -60,21 +78,16 @@ struct Move {
 
   std::string toUCI() const {
     std::string uci = squareToString(from) + squareToString(to);
-    switch (flag) {
-      case MoveFlag::PROMOTE_KNIGHT:
-        uci += "n";
-        break;
-      case MoveFlag::PROMOTE_BISHOP:
-        uci += "b";
-        break;
-      case MoveFlag::PROMOTE_ROOK:
-        uci += "r";
-        break;
-      case MoveFlag::PROMOTE_QUEEN:
-        uci += "q";
-        break;
-      default:
-        break;
+
+    int flagBits = static_cast<int>(flag);
+    if (flagBits & static_cast<int>(MoveFlag::PROMOTE_KNIGHT)) {
+      uci += "n";
+    } else if (flagBits & static_cast<int>(MoveFlag::PROMOTE_BISHOP)) {
+      uci += "b";
+    } else if (flagBits & static_cast<int>(MoveFlag::PROMOTE_ROOK)) {
+      uci += "r";
+    } else if (flagBits & static_cast<int>(MoveFlag::PROMOTE_QUEEN)) {
+      uci += "q";
     }
 
     return uci;

@@ -2,7 +2,7 @@
 #include "Attacks.hpp"
 
 namespace MoveGen {
-  static void addMoveIfLegal(Board& board, std::vector<Move>& moves, const Move& move) {
+  static void addMoveIfLegal(Board& board, std::vector<Move>& moves, Move move) {
     Color currentColor = board.currentTurn();
     Color enemyColor = (currentColor == Color::WHITE) ? Color::BLACK : Color::WHITE;
 
@@ -11,14 +11,14 @@ namespace MoveGen {
 
     // Captures
     Square enPassantCaptureSquare = Square::NONE;
-    if (move.flag == MoveFlag::EN_PASSANT) {
+    if (static_cast<int>(move.flag) & static_cast<int>(MoveFlag::EN_PASSANT)) {
       enPassantCaptureSquare = (currentColor == Color::WHITE)
         ? intToSquare(squareToInt(move.to) - 8)
         : intToSquare(squareToInt(move.to) + 8);
       board.removePiece(enPassantCaptureSquare);
     }
 
-    if (capturedPiece != Piece::NONE && move.flag != MoveFlag::EN_PASSANT) {
+    if (capturedPiece != Piece::NONE && !(static_cast<int>(move.flag) & static_cast<int>(MoveFlag::EN_PASSANT))) {
       board.removePiece(move.to);
     }
 
@@ -29,21 +29,15 @@ namespace MoveGen {
     if (move.isPromotion()) {
       Piece promotionPiece = Piece::NONE;
 
-      switch (move.flag) {
-        case MoveFlag::PROMOTE_KNIGHT:
-          promotionPiece = Piece::KNIGHT;
-          break;
-        case MoveFlag::PROMOTE_BISHOP:
-          promotionPiece = Piece::BISHOP;
-          break;
-        case MoveFlag::PROMOTE_ROOK:
-          promotionPiece = Piece::ROOK;
-          break;
-        case MoveFlag::PROMOTE_QUEEN:
-          promotionPiece = Piece::QUEEN;
-          break;
-        default:
-          break;
+      int flagBits = static_cast<int>(move.flag);
+      if (flagBits & static_cast<int>(MoveFlag::PROMOTE_KNIGHT)) {
+        promotionPiece = Piece::KNIGHT;
+      } else if (flagBits & static_cast<int>(MoveFlag::PROMOTE_BISHOP)) {
+        promotionPiece = Piece::BISHOP;
+      } else if (flagBits & static_cast<int>(MoveFlag::PROMOTE_ROOK)) {
+        promotionPiece = Piece::ROOK;
+      } else if (flagBits & static_cast<int>(MoveFlag::PROMOTE_QUEEN)) {
+        promotionPiece = Piece::QUEEN;
       }
 
       board.putPiece(currentColor, promotionPiece, move.to);
@@ -52,12 +46,12 @@ namespace MoveGen {
     }
 
     // Castling
-    if (move.flag == MoveFlag::CASTLE_KING) {
+    if (static_cast<int>(move.flag) & static_cast<int>(MoveFlag::CASTLE_KING)) {
       Square rookFrom = (currentColor == Color::WHITE) ? Square::H1 : Square::H8;
       Square rookTo = (currentColor == Color::WHITE) ? Square::F1 : Square::F8;
       board.removePiece(rookFrom);
       board.putPiece(currentColor, Piece::ROOK, rookTo);
-    } else if (move.flag == MoveFlag::CASTLE_QUEEN) {
+    } else if (static_cast<int>(move.flag) & static_cast<int>(MoveFlag::CASTLE_QUEEN)) {
       Square rookFrom = (currentColor == Color::WHITE) ? Square::A1 : Square::A8;
       Square rookTo = (currentColor == Color::WHITE) ? Square::D1 : Square::D8;
       board.removePiece(rookFrom);
@@ -66,14 +60,15 @@ namespace MoveGen {
 
     // Check
     bool legal = !board.isInCheck(currentColor);
+    bool check = board.isInCheck(enemyColor);
 
     // Undo changes
-    if (move.flag == MoveFlag::CASTLE_KING) {
+    if (static_cast<int>(move.flag) & static_cast<int>(MoveFlag::CASTLE_KING)) {
       Square rookFrom = (currentColor == Color::WHITE) ? Square::H1 : Square::H8;
       Square rookTo = (currentColor == Color::WHITE) ? Square::F1 : Square::F8;
       board.removePiece(rookTo);
       board.putPiece(currentColor, Piece::ROOK, rookFrom);
-    } else if (move.flag == MoveFlag::CASTLE_QUEEN) {
+    } else if (static_cast<int>(move.flag) & static_cast<int>(MoveFlag::CASTLE_QUEEN)) {
       Square rookFrom = (currentColor == Color::WHITE) ? Square::A1 : Square::A8;
       Square rookTo = (currentColor == Color::WHITE) ? Square::D1 : Square::D8;
       board.removePiece(rookTo);
@@ -83,13 +78,17 @@ namespace MoveGen {
     board.removePiece(move.to);
     board.putPiece(currentColor, movingPiece, move.from);
 
-    if (move.flag == MoveFlag::EN_PASSANT) {
+    if (static_cast<int>(move.flag) & static_cast<int>(MoveFlag::EN_PASSANT)) {
       board.putPiece(enemyColor, Piece::PAWN, enPassantCaptureSquare);
     } else if (capturedPiece != Piece::NONE) {
       board.putPiece(enemyColor, capturedPiece, move.to);
     }
 
     if (legal) {
+      if (check) {
+        move.flag = static_cast<MoveFlag>(static_cast<int>(move.flag) | static_cast<int>(MoveFlag::CHECK));
+      }
+
       moves.push_back(move);
     }
   }

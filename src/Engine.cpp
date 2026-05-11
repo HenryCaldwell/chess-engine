@@ -145,7 +145,7 @@ namespace Engine {
         score += PIECE_VALUES[pieceToInt(capturedPiece)] * 10 - PIECE_VALUES[pieceToInt(movingPiece)];
       }
 
-      if (move.flag == MoveFlag::EN_PASSANT) {
+      if (static_cast<int>(move.flag) & static_cast<int>(MoveFlag::EN_PASSANT)) {
         score += PIECE_VALUES[pieceToInt(Piece::PAWN)] * 10;
       }
     }
@@ -163,7 +163,7 @@ namespace Engine {
     Piece movingPiece = board.pieceOn(move.from);
 
     // Captures
-    if (move.flag == MoveFlag::EN_PASSANT) {
+    if (static_cast<int>(move.flag) & static_cast<int>(MoveFlag::EN_PASSANT)) {
       Square captureSquare = (currentColor == Color::WHITE)
         ? intToSquare(squareToInt(move.to) - 8)
         : intToSquare(squareToInt(move.to) + 8);
@@ -181,21 +181,15 @@ namespace Engine {
     if (move.isPromotion()) {
       Piece promotionPiece = Piece::NONE;
 
-      switch (move.flag) {
-        case MoveFlag::PROMOTE_KNIGHT:
-          promotionPiece = Piece::KNIGHT;
-          break;
-        case MoveFlag::PROMOTE_BISHOP:
-          promotionPiece = Piece::BISHOP;
-          break;
-        case MoveFlag::PROMOTE_ROOK:
-          promotionPiece = Piece::ROOK;
-          break;
-        case MoveFlag::PROMOTE_QUEEN:
-          promotionPiece = Piece::QUEEN;
-          break;
-        default:
-          break;
+      int flagBits = static_cast<int>(move.flag);
+      if (flagBits & static_cast<int>(MoveFlag::PROMOTE_KNIGHT)) {
+        promotionPiece = Piece::KNIGHT;
+      } else if (flagBits & static_cast<int>(MoveFlag::PROMOTE_BISHOP)) {
+        promotionPiece = Piece::BISHOP;
+      } else if (flagBits & static_cast<int>(MoveFlag::PROMOTE_ROOK)) {
+        promotionPiece = Piece::ROOK;
+      } else if (flagBits & static_cast<int>(MoveFlag::PROMOTE_QUEEN)) {
+        promotionPiece = Piece::QUEEN;
       }
 
       board.putPiece(currentColor, promotionPiece, move.to);
@@ -204,12 +198,12 @@ namespace Engine {
     }
 
     // Castling
-    if (move.flag == MoveFlag::CASTLE_KING) {
+    if (static_cast<int>(move.flag) & static_cast<int>(MoveFlag::CASTLE_KING)) {
       Square rookFrom = (currentColor == Color::WHITE) ? Square::H1 : Square::H8;
       Square rookTo = (currentColor == Color::WHITE) ? Square::F1 : Square::F8;
       board.removePiece(rookFrom);
       board.putPiece(currentColor, Piece::ROOK, rookTo);
-    } else if (move.flag == MoveFlag::CASTLE_QUEEN) {
+    } else if (static_cast<int>(move.flag) & static_cast<int>(MoveFlag::CASTLE_QUEEN)) {
       Square rookFrom = (currentColor == Color::WHITE) ? Square::A1 : Square::A8;
       Square rookTo = (currentColor == Color::WHITE) ? Square::D1 : Square::D8;
       board.removePiece(rookFrom);
@@ -217,7 +211,7 @@ namespace Engine {
     }
 
     // En passant square
-    if (move.flag == MoveFlag::DOUBLE_PAWN) {
+    if (static_cast<int>(move.flag) & static_cast<int>(MoveFlag::DOUBLE_PAWN)) {
       int enPassantIndex = (squareToInt(move.from) + squareToInt(move.to)) / 2;
       board.setEnPassantSquare(intToSquare(enPassantIndex));
     } else {
