@@ -5,6 +5,9 @@
 #include <limits>
 
 namespace Engine {
+  // Total nodes visited during search for benchmarking pruning efficiency
+  static uint64_t nodeCount;
+
   // Shared transposition table reused across searches for move ordering and cached bounds
   static TranspositionTable transpositionTable;
 
@@ -254,6 +257,8 @@ namespace Engine {
   }
 
   static int quiescence(Board& board, int alpha, int beta) {
+    nodeCount++;
+
     // Stand-pat score assumes no more captures are made
     int standPatScore = evaluate(board);
 
@@ -302,6 +307,8 @@ namespace Engine {
   }
 
   static int alphaBeta(Board& board, int depth, int alpha, int beta) {
+    nodeCount++;
+
     // At the depth limit, switch to quiescence to resolve forcing captures
     if (depth == 0) {
       return quiescence(board, alpha, beta);
@@ -405,8 +412,10 @@ namespace Engine {
     return alpha;
   }
 
-  Move search(Board& board, int depth) {
+  Result search(Board& board, int depth) {
+    nodeCount = 0;
     Move bestMove;
+
     // Previous completed iteration score seeds the next aspiration window
     int previousScore = 0;
 
@@ -415,7 +424,7 @@ namespace Engine {
       std::vector<Move> moves = MoveGen::generateMoves(board);
 
       if (moves.empty()) {
-        return bestMove;
+        return { bestMove, nodeCount };
       }
 
       int ttScore;
@@ -480,6 +489,6 @@ namespace Engine {
       bestMove = currentBestMove;
     }
 
-    return bestMove;
+    return { bestMove, nodeCount };
   }
 }

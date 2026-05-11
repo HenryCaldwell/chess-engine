@@ -5,11 +5,19 @@
 #include "Move.hpp"
 
 namespace Engine {
-  Move search(Board& board, int depth);
+  struct Result {
+    Move bestMove;
+    uint64_t nodes;
+  };
 
 
 
 
+  Result search(Board& board, int depth);
+
+
+
+  
   int evaluate(const Board& board);
 }
 
