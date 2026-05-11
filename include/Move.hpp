@@ -2,6 +2,7 @@
 #define MOVE_HPP
 
 #include "Bitboard.hpp"
+#include "Board.hpp"
 #include <iostream>
 #include <string>
 
@@ -92,6 +93,8 @@ struct Move {
 
     return uci;
   }
+
+  std::string toSAN(const Board& board) const;
 
 
 
