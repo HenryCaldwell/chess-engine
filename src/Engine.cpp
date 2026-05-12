@@ -272,15 +272,19 @@ namespace Engine {
       alpha = standPatScore;
     }
 
-    std::vector<Move> moves = MoveGen::generateCaptures(board);
+    Move moves[64];
+    int moveCount = 0;
+    MoveGen::generateCaptures(board, moves, moveCount);
 
     Move ttMove;
     // Search promising captures first to stabilize tactical leaf positions quickly
-    std::sort(moves.begin(), moves.end(), [&board, &ttMove](const Move& moveA, const Move& moveB) {
+    std::sort(moves, moves + moveCount, [&board, &ttMove](const Move& moveA, const Move& moveB) {
       return scoreMove(board, moveA, ttMove) > scoreMove(board, moveB, ttMove);
     });
 
-    for (const Move& move : moves) {
+    for (int i = 0; i < moveCount; i++) {
+      const Move& move = moves[i];
+
       // Quiescence ignores quiet moves to limit the horizon search
       if (!move.isCapture()) {
         continue;
@@ -342,10 +346,12 @@ namespace Engine {
       }
     }
 
-    std::vector<Move> moves = MoveGen::generateMoves(board);
+    Move moves[256];
+    int moveCount = 0;
+    MoveGen::generateMoves(board, moves, moveCount);
 
     // No legal moves means checkmate or stalemate
-    if (moves.empty()) {
+    if (moveCount == 0) {
       // Checkmate
       if (board.isInCheck(board.currentTurn())) {
         return -100000 + (100 - depth);
@@ -356,15 +362,16 @@ namespace Engine {
     }
 
     // Good moves are searched first so alpha-beta can prune more aggressively
-    std::sort(moves.begin(), moves.end(), [&board, &ttMove](const Move& moveA, const Move& moveB) {
+    std::sort(moves, moves + moveCount, [&board, &ttMove](const Move& moveA, const Move& moveB) {
       return scoreMove(board, moveA, ttMove) > scoreMove(board, moveB, ttMove);
     });
 
     Move bestMove = moves[0];
     int movesSearched = 0;
 
-    for (const Move& move : moves) {
+    for (int i =  0; i < moveCount; i++) {
       Board backup = board;
+      const Move& move = moves[i];
       makeMove(board, move);
 
       int score;
@@ -421,9 +428,11 @@ namespace Engine {
 
     // Iterative deepening searches from shallow depths up to the requested depth
     for (int currentDepth = 1; currentDepth <= depth; currentDepth++) {
-      std::vector<Move> moves = MoveGen::generateMoves(board);
+      Move moves[256];
+      int moveCount = 0;
+      MoveGen::generateMoves(board, moves, moveCount);
 
-      if (moves.empty()) {
+      if (moveCount == 0) {
         return { bestMove, nodeCount };
       }
 
@@ -433,7 +442,7 @@ namespace Engine {
       transpositionTable.probe(board.hash(), 0, 0, 0, ttScore, ttMove);
 
       // Order root moves before searching this iteration
-      std::sort(moves.begin(), moves.end(), [&board, &ttMove](const Move& moveA, const Move& moveB) {
+      std::sort(moves, moves + moveCount, [&board, &ttMove](const Move& moveA, const Move& moveB) {
         return scoreMove(board, moveA, ttMove) > scoreMove(board, moveB, ttMove);
       });
 
@@ -446,10 +455,12 @@ namespace Engine {
       int currentBestScore = std::numeric_limits<int>::min();
       Move currentBestMove = moves[0];
 
-      for (const Move& move : moves) {
+      for (int i = 0; i < moveCount; i++) {
         // Try each root move and search the resulting position
         Board backup = board;
+        const Move& move = moves[i];
         makeMove(board, move);
+
         int score = -alphaBeta(board, currentDepth - 1, -beta, -alpha);
         board = backup;
 
@@ -470,10 +481,12 @@ namespace Engine {
         currentBestScore = std::numeric_limits<int>::min();
         currentBestMove = moves[0];
 
-        for (const Move& move : moves) {
+        for (int i = 0; i < moveCount; i++) {
           // Full-window re-search recovers the exact score after aspiration failure
           Board backup = board;
+          const Move& move = moves[i];
           makeMove(board, move);
+
           int score = -alphaBeta(board, currentDepth - 1, std::numeric_limits<int>::min() + 1, std::numeric_limits<int>::max());
           board = backup;
 

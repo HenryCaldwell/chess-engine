@@ -6,8 +6,8 @@
 #include <vector>
 
 namespace MoveGen {
-  std::vector<Move> generateMoves(Board& board);
-  std::vector<Move> generateCaptures(Board& board);
+  void generateMoves(Board& board, Move* moves, int& moveCount);
+  void generateCaptures(Board& board, Move* moves, int& moveCount);
 }
 
 #endif
