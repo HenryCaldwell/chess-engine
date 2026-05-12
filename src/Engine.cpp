@@ -14,6 +14,8 @@ namespace Engine {
   // Large bonus so the transposition table move is searched first
   static constexpr int TT_MOVE_BONUS = 100000;
 
+  static constexpr int CHECK_MOVE_BONUS = 10000;
+
   // Aspiration window size in centipawns around the previous iteration score
   static constexpr int WINDOW_SIZE = 50;
 
@@ -153,6 +155,10 @@ namespace Engine {
     // Promotions are searched early because they are tactically forcing
     if (move.isPromotion()) {
       score += PIECE_VALUES[pieceToInt(Piece::QUEEN)];
+    }
+
+    if (move.isCheck()) {
+      score += CHECK_MOVE_BONUS;
     }
 
     return score;
