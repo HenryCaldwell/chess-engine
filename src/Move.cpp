@@ -53,20 +53,20 @@ std::string Move::toSAN(const Board& board) const {
       }
 
       Bitboard attacks = 0;
-      Bitboard occupied = board.allBitboard();
+      Bitboard occupiedBitboard = board.allBitboard();
 
       switch (piece) {
         case Piece::KNIGHT:
           attacks = Attacks::knightAttacks(candidate);
           break;
         case Piece::BISHOP:
-          attacks = Attacks::bishopAttacks(candidate, occupied);
+          attacks = Attacks::bishopAttacks(candidate, occupiedBitboard);
           break;
         case Piece::ROOK:
-          attacks = Attacks::rookAttacks(candidate, occupied);
+          attacks = Attacks::rookAttacks(candidate, occupiedBitboard);
           break;
         case Piece::QUEEN:
-          attacks = Attacks::queenAttacks(candidate, occupied);
+          attacks = Attacks::queenAttacks(candidate, occupiedBitboard);
           break;
         default:
           break;
