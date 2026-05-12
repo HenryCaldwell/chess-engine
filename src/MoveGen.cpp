@@ -2,12 +2,155 @@
 #include "Attacks.hpp"
 
 namespace MoveGen {
+  static Bitboard pinnedBitboard = 0;
+
+  static bool inCheck = false;
+
+  static Bitboard pinnedPieces(Board& board) {
+    Color currentColor = board.currentTurn();
+    Color enemyColor = (currentColor == Color::WHITE) ? Color::BLACK : Color::WHITE;
+    Square kingSquare = board.findKing(currentColor);
+
+    Bitboard pinned = 0;
+
+    Bitboard occupiedBitboard = board.allBitboard();
+    Bitboard currentColorBitboard = board.colorBitboard(currentColor);
+
+    // Diagonal pinners
+    Bitboard diagonalSliders = board.pieceBitboard(enemyColor, Piece::BISHOP) | board.pieceBitboard(enemyColor, Piece::QUEEN);
+    Bitboard potentialPinners = diagonalSliders & Attacks::bishopAttacks(kingSquare, 0);
+
+    while (potentialPinners) {
+      Square sliderSquare = intToSquare(popLowestBit(potentialPinners));
+      Bitboard endpoints = squareBitboard(kingSquare) | squareBitboard(sliderSquare);
+      Bitboard between = Attacks::bishopAttacks(kingSquare, endpoints) & Attacks::bishopAttacks(sliderSquare, endpoints);
+      Bitboard piecesBetween = between & occupiedBitboard;
+
+      if (__builtin_popcountll(piecesBetween) == 1 && (piecesBetween & currentColorBitboard)) {
+        pinned |= piecesBetween & currentColorBitboard;
+      }
+    }
+
+    // Straight pinners
+    Bitboard straightSliders = board.pieceBitboard(enemyColor, Piece::ROOK) | board.pieceBitboard(enemyColor, Piece::QUEEN);
+    potentialPinners = straightSliders & Attacks::rookAttacks(kingSquare, 0);
+
+    while (potentialPinners) {
+      Square sliderSquare = intToSquare(popLowestBit(potentialPinners));
+      Bitboard endpoints = squareBitboard(kingSquare) | squareBitboard(sliderSquare);
+      Bitboard between = Attacks::rookAttacks(kingSquare, endpoints) & Attacks::rookAttacks(sliderSquare, endpoints);
+      Bitboard piecesBetween = between & occupiedBitboard;
+
+      if (__builtin_popcountll(piecesBetween) == 1 && (piecesBetween & currentColorBitboard)) {
+        pinned |= piecesBetween & currentColorBitboard;
+      }
+    }
+
+    return pinned;
+  }
+
+  static bool givesCheck(Board& board, const Move& move, Square enemyKingSquare) {
+    Color currentColor = board.currentTurn();
+    Piece movingPiece = board.pieceOn(move.from);
+
+    if (move.isPromotion()) {
+      int flagBits = static_cast<int>(move.flag);
+      if (flagBits & static_cast<int>(MoveFlag::PROMOTE_KNIGHT)) {
+        movingPiece = Piece::KNIGHT;
+      } else if (flagBits & static_cast<int>(MoveFlag::PROMOTE_BISHOP)) {
+        movingPiece = Piece::BISHOP;
+      } else if (flagBits & static_cast<int>(MoveFlag::PROMOTE_ROOK)) {
+        movingPiece = Piece::ROOK;
+      } else if (flagBits & static_cast<int>(MoveFlag::PROMOTE_QUEEN)) {
+        movingPiece = Piece::QUEEN;
+      }
+    }
+
+    Bitboard occupiedBitboard = board.allBitboard();
+    occupiedBitboard &= ~squareBitboard(move.from);
+    occupiedBitboard |= squareBitboard(move.to);
+
+    if (static_cast<int>(move.flag) & static_cast<int>(MoveFlag::EN_PASSANT)) {
+      Square enPassantCaptureSquare = (currentColor == Color::WHITE)
+        ? intToSquare(squareToInt(move.to) - 8)
+        : intToSquare(squareToInt(move.to) + 8);
+      occupiedBitboard &= ~squareBitboard(enPassantCaptureSquare);
+    }
+
+    Bitboard enemyKingBitboard = squareBitboard(enemyKingSquare);
+
+    switch (movingPiece) {
+      case Piece::PAWN:
+        if (Attacks::pawnAttacks(currentColor, move.to) & enemyKingBitboard) {
+          return true;
+        }
+
+        break;
+      case Piece::KNIGHT:
+        if (Attacks::knightAttacks(move.to) & enemyKingBitboard) {
+          return true;
+        }
+
+        break;
+      case Piece::BISHOP:
+        if (Attacks::bishopAttacks(move.to, occupiedBitboard) & enemyKingBitboard) {
+          return true;
+        }
+
+        break;
+      case Piece::ROOK:
+        if (Attacks::rookAttacks(move.to, occupiedBitboard) & enemyKingBitboard) {
+          return true;
+        }
+
+        break;
+      case Piece::QUEEN:
+        if (Attacks::queenAttacks(move.to, occupiedBitboard) & enemyKingBitboard) {
+          return true;
+        }
+
+        break;
+      default:
+        break;
+    }
+
+    Bitboard diagonalSliders = board.pieceBitboard(currentColor, Piece::BISHOP) | board.pieceBitboard(currentColor, Piece::QUEEN);
+    Bitboard straightSliders = board.pieceBitboard(currentColor, Piece::ROOK) | board.pieceBitboard(currentColor, Piece::QUEEN);
+    Bitboard destinationBitboard = squareBitboard(move.to);
+
+    if (Attacks::bishopAttacks(enemyKingSquare, occupiedBitboard) & diagonalSliders & ~destinationBitboard) {
+      return true;
+    }
+
+    if (Attacks::rookAttacks(enemyKingSquare, occupiedBitboard) & straightSliders & ~destinationBitboard) {
+      return true;
+    }
+
+    return false;
+  }
+
   static void addMoveIfLegal(Board& board, Move* moves, int& moveCount, Move move) {
     Color currentColor = board.currentTurn();
     Color enemyColor = (currentColor == Color::WHITE) ? Color::BLACK : Color::WHITE;
+    Piece movingPiece = board.pieceOn(move.from);
+
+    bool kingMove = (movingPiece == Piece::KING);
+    bool pinned = (pinnedBitboard & squareBitboard(move.from)) != 0;
+    bool enPassant = static_cast<int>(move.flag) & static_cast<int>(MoveFlag::EN_PASSANT);
+
+    if (!inCheck && !kingMove && !pinned && !enPassant) {
+      Square enemyKingSquare = board.findKing(enemyColor);
+
+      if (givesCheck(board, move, enemyKingSquare)) {
+        move.flag = static_cast<MoveFlag>(static_cast<int>(move.flag) | static_cast<int>(MoveFlag::CHECK));
+      }
+
+      moves[moveCount++] = move;
+      
+      return;
+    }
 
     Piece capturedPiece = board.pieceOn(move.to);
-    Piece movingPiece = board.pieceOn(move.from);
 
     // Captures
     Square enPassantCaptureSquare = Square::NONE;
@@ -477,6 +620,8 @@ namespace MoveGen {
 
   void generateMoves(Board& board, Move* moves, int& moveCount) {
     moveCount = 0;
+    pinnedBitboard = pinnedPieces(board);
+    inCheck = board.isInCheck(board.currentTurn());
 
     generatePawnMoves(board, moves, moveCount);
     generateKnightMoves(board, moves, moveCount);
@@ -488,6 +633,8 @@ namespace MoveGen {
 
   void generateCaptures(Board& board, Move* moves, int& moveCount) {
     moveCount = 0;
+    pinnedBitboard = pinnedPieces(board);
+    inCheck = board.isInCheck(board.currentTurn());
 
     generatePawnCaptures(board, moves, moveCount);
     generateKnightCaptures(board, moves, moveCount);
