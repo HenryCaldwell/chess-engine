@@ -170,10 +170,10 @@ namespace Engine {
 
     // Captures
     if (static_cast<int>(move.flag) & static_cast<int>(MoveFlag::EN_PASSANT)) {
-      Square captureSquare = (currentColor == Color::WHITE)
+      Square enPassantCaptureSquare = (currentColor == Color::WHITE)
         ? intToSquare(squareToInt(move.to) - 8)
         : intToSquare(squareToInt(move.to) + 8);
-      board.removePiece(captureSquare);
+      board.removePiece(enPassantCaptureSquare);
     }
     
     if (board.pieceOn(move.to) != Piece::NONE) {
