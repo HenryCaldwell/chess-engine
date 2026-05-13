@@ -164,98 +164,6 @@ namespace Engine {
     return score;
   }
 
-  static void makeMove(Board& board, const Move& move) {
-    Color currentColor = board.currentTurn();
-    Piece movingPiece = board.pieceOn(move.from);
-
-    // Captures
-    if (static_cast<int>(move.flag) & static_cast<int>(MoveFlag::EN_PASSANT)) {
-      Square enPassantCaptureSquare = (currentColor == Color::WHITE)
-        ? intToSquare(squareToInt(move.to) - 8)
-        : intToSquare(squareToInt(move.to) + 8);
-      board.removePiece(enPassantCaptureSquare);
-    }
-    
-    if (board.pieceOn(move.to) != Piece::NONE) {
-      board.removePiece(move.to);
-    }
-
-    // Moves
-    board.removePiece(move.from);
-
-    // Promotion
-    if (move.isPromotion()) {
-      Piece promotionPiece = Piece::NONE;
-
-      int flagBits = static_cast<int>(move.flag);
-      if (flagBits & static_cast<int>(MoveFlag::PROMOTE_KNIGHT)) {
-        promotionPiece = Piece::KNIGHT;
-      } else if (flagBits & static_cast<int>(MoveFlag::PROMOTE_BISHOP)) {
-        promotionPiece = Piece::BISHOP;
-      } else if (flagBits & static_cast<int>(MoveFlag::PROMOTE_ROOK)) {
-        promotionPiece = Piece::ROOK;
-      } else if (flagBits & static_cast<int>(MoveFlag::PROMOTE_QUEEN)) {
-        promotionPiece = Piece::QUEEN;
-      }
-
-      board.putPiece(currentColor, promotionPiece, move.to);
-    } else {
-      board.putPiece(currentColor, movingPiece, move.to);
-    }
-
-    // Castling
-    if (static_cast<int>(move.flag) & static_cast<int>(MoveFlag::CASTLE_KING)) {
-      Square rookFrom = (currentColor == Color::WHITE) ? Square::H1 : Square::H8;
-      Square rookTo = (currentColor == Color::WHITE) ? Square::F1 : Square::F8;
-      board.removePiece(rookFrom);
-      board.putPiece(currentColor, Piece::ROOK, rookTo);
-    } else if (static_cast<int>(move.flag) & static_cast<int>(MoveFlag::CASTLE_QUEEN)) {
-      Square rookFrom = (currentColor == Color::WHITE) ? Square::A1 : Square::A8;
-      Square rookTo = (currentColor == Color::WHITE) ? Square::D1 : Square::D8;
-      board.removePiece(rookFrom);
-      board.putPiece(currentColor, Piece::ROOK, rookTo);
-    }
-
-    // En passant square
-    if (static_cast<int>(move.flag) & static_cast<int>(MoveFlag::DOUBLE_PAWN)) {
-      int enPassantIndex = (squareToInt(move.from) + squareToInt(move.to)) / 2;
-      board.setEnPassantSquare(intToSquare(enPassantIndex));
-    } else {
-      board.setEnPassantSquare(Square::NONE);
-    }
-
-    // Castling rights
-    int castlingRights = board.castlingRights();
-    if (movingPiece == Piece::KING) {
-      if (currentColor == Color::WHITE) {
-        castlingRights &= ~(CASTLE_WHITE_KING | CASTLE_WHITE_QUEEN);
-      } else {
-        castlingRights &= ~(CASTLE_BLACK_KING | CASTLE_BLACK_QUEEN);
-      }
-    }
-
-    if (move.from == Square::A1 || move.to == Square::A1) {
-      castlingRights &= ~CASTLE_WHITE_QUEEN;
-    }
-
-    if (move.from == Square::H1 || move.to == Square::H1) {
-      castlingRights &= ~CASTLE_WHITE_KING;
-    }
-
-    if (move.from == Square::A8 || move.to == Square::A8) {
-      castlingRights &= ~CASTLE_BLACK_QUEEN;
-    }
-
-    if (move.from == Square::H8 || move.to == Square::H8) {
-      castlingRights &= ~CASTLE_BLACK_KING;
-    }
-
-    board.setCastlingRights(castlingRights);
-
-    // Switch turn
-    board.flipCurrentTurn();
-  }
-
   static int quiescence(Board& board, int alpha, int beta) {
     nodeCount++;
 
@@ -291,10 +199,9 @@ namespace Engine {
       }
 
       // Try capture and flip perspective with negamax
-      Board backup = board;
-      makeMove(board, move);
+      MoveState state = board.makeMove(move);
       int score = -quiescence(board, -beta, -alpha);
-      board = backup;
+      board.undoMove(move, state);
 
       // If the capture beats beta, prune the remaining captures
       if (score >= beta) {
@@ -330,7 +237,7 @@ namespace Engine {
 
     // Null move pruning checks if even passing the turn still beats beta so real moves can be pruned
     if (depth >= 3 && !board.isInCheck(board.currentTurn())) {
-      Board backup = board;
+      Square enPassantSquare = board.enPassantSquare();
       // Make a null move by only flipping turn and clearing en passant
       board.flipCurrentTurn();
       board.setEnPassantSquare(Square::NONE);
@@ -338,7 +245,8 @@ namespace Engine {
       // Reduced zero-window search checks if even passing still beats beta
       int nullScore = -alphaBeta(board, depth - 3, -beta, -beta + 1);
 
-      board = backup;
+      board.flipCurrentTurn();
+      board.setEnPassantSquare(enPassantSquare);
 
       // If the null move beats beta, prune the node
       if (nullScore >= beta) {
@@ -370,9 +278,8 @@ namespace Engine {
     int movesSearched = 0;
 
     for (int i =  0; i < moveCount; i++) {
-      Board backup = board;
       const Move& move = moves[i];
-      makeMove(board, move);
+      MoveState state = board.makeMove(move);
 
       int score;
       // The first move gets a full-window search because it is likely best
@@ -394,7 +301,7 @@ namespace Engine {
         }
       }
 
-      board = backup;
+      board.undoMove(move, state);
 
       // If the move beats beta, prune the remaining moves
       if (score >= beta) {
@@ -457,12 +364,11 @@ namespace Engine {
 
       for (int i = 0; i < moveCount; i++) {
         // Try each root move and search the resulting position
-        Board backup = board;
         const Move& move = moves[i];
-        makeMove(board, move);
+        MoveState state = board.makeMove(move);
 
         int score = -alphaBeta(board, currentDepth - 1, -beta, -alpha);
-        board = backup;
+        board.undoMove(move, state);
 
         // Store the best move found for this completed depth
         if (score > currentBestScore) {
@@ -483,12 +389,11 @@ namespace Engine {
 
         for (int i = 0; i < moveCount; i++) {
           // Full-window re-search recovers the exact score after aspiration failure
-          Board backup = board;
           const Move& move = moves[i];
-          makeMove(board, move);
+          MoveState state = board.makeMove(move);
 
           int score = -alphaBeta(board, currentDepth - 1, std::numeric_limits<int>::min() + 1, std::numeric_limits<int>::max());
-          board = backup;
+          board.undoMove(move, state);
 
           if (score > currentBestScore) {
             currentBestScore = score;

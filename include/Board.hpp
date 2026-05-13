@@ -2,6 +2,7 @@
 #define BOARD_HPP
 
 #include "Bitboard.hpp"
+#include "Move.hpp"
 #include <array>
 #include <string>
 
@@ -10,6 +11,17 @@ constexpr int CASTLE_WHITE_QUEEN = 2;
 constexpr int CASTLE_BLACK_KING = 4;
 constexpr int CASTLE_BLACK_QUEEN = 8;
 constexpr int CASTLE_ALL = 15;
+
+
+
+
+struct MoveState {
+  Piece capturedPiece;
+  int castlingRights;
+  Square enPassantSquare;
+  int halfmoveClock;
+  uint64_t hash;
+};
 
 
 
@@ -54,6 +66,12 @@ public:
   void setCastlingRights(int rights);
   void setEnPassantSquare(Square square);
   void setHalfmoveClock(int count);
+
+
+
+
+  MoveState makeMove(const Move& move);
+  void undoMove(const Move& move, const MoveState& state);
 
 
 

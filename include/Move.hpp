@@ -2,9 +2,10 @@
 #define MOVE_HPP
 
 #include "Bitboard.hpp"
-#include "Board.hpp"
 #include <iostream>
 #include <string>
+
+class Board;
 
 enum class MoveFlag : int {
   QUIET = 0,

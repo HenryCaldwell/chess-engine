@@ -338,6 +338,167 @@ void Board::setHalfmoveClock(int count) {
 
 
 
+MoveState Board::makeMove(const Move& move) {
+  MoveState state;
+  state.capturedPiece = pieceMailbox_[squareToInt(move.to)];
+  state.castlingRights = castlingRights_;
+  state.enPassantSquare = enPassantSquare_;
+  state.halfmoveClock = halfmoveClock_;
+  state.hash = hash_;
+
+  Color currentColor = currentTurn_;
+  Piece movingPiece = pieceMailbox_[squareToInt(move.from)];
+
+  // Captures
+  if (static_cast<int>(move.flag) & static_cast<int>(MoveFlag::EN_PASSANT)) {
+    Square enPassantCaptureSquare = (currentColor == Color::WHITE)
+      ? intToSquare(squareToInt(move.to) - 8)
+      : intToSquare(squareToInt(move.to) + 8);
+    removePiece(enPassantCaptureSquare);
+  }
+
+  if (pieceMailbox_[squareToInt(move.to)] != Piece::NONE) {
+    removePiece(move.to);
+  }
+
+  // Moves
+  removePiece(move.from);
+
+  // Promotion
+  if (move.isPromotion()) {
+    Piece promotionPiece = Piece::NONE;
+
+    int flagBits = static_cast<int>(move.flag);
+    if (flagBits & static_cast<int>(MoveFlag::PROMOTE_KNIGHT)) {
+      promotionPiece = Piece::KNIGHT;
+    } else if (flagBits & static_cast<int>(MoveFlag::PROMOTE_BISHOP)) {
+      promotionPiece = Piece::BISHOP;
+    } else if (flagBits & static_cast<int>(MoveFlag::PROMOTE_ROOK)) {
+      promotionPiece = Piece::ROOK;
+    } else if (flagBits & static_cast<int>(MoveFlag::PROMOTE_QUEEN)) {
+      promotionPiece = Piece::QUEEN;
+    }
+
+    putPiece(currentColor, promotionPiece, move.to);
+  } else {
+    putPiece(currentColor, movingPiece, move.to);
+  }
+
+  // Castling
+  if (static_cast<int>(move.flag) & static_cast<int>(MoveFlag::CASTLE_KING)) {
+    Square rookFrom = (currentColor == Color::WHITE) ? Square::H1 : Square::H8;
+    Square rookTo = (currentColor == Color::WHITE) ? Square::F1 : Square::F8;
+    removePiece(rookFrom);
+    putPiece(currentColor, Piece::ROOK, rookTo);
+  } else if (static_cast<int>(move.flag) & static_cast<int>(MoveFlag::CASTLE_QUEEN)) {
+    Square rookFrom = (currentColor == Color::WHITE) ? Square::A1 : Square::A8;
+    Square rookTo = (currentColor == Color::WHITE) ? Square::D1 : Square::D8;
+    removePiece(rookFrom);
+    putPiece(currentColor, Piece::ROOK, rookTo);
+  }
+
+  // En passant square
+  if (static_cast<int>(move.flag) & static_cast<int>(MoveFlag::DOUBLE_PAWN)) {
+    int enPassantIndex = (squareToInt(move.from) + squareToInt(move.to)) / 2;
+    setEnPassantSquare(intToSquare(enPassantIndex));
+  } else {
+    setEnPassantSquare(Square::NONE);
+  }
+
+  // Castling rights
+  int castlingRights = castlingRights_;
+  if (movingPiece == Piece::KING) {
+    if (currentColor == Color::WHITE) {
+      castlingRights &= ~(CASTLE_WHITE_KING | CASTLE_WHITE_QUEEN);
+    } else {
+      castlingRights &= ~(CASTLE_BLACK_KING | CASTLE_BLACK_QUEEN);
+    }
+  }
+
+  if (move.from == Square::A1 || move.to == Square::A1) {
+    castlingRights &= ~CASTLE_WHITE_QUEEN;
+  }
+
+  if (move.from == Square::H1 || move.to == Square::H1) {
+    castlingRights &= ~CASTLE_WHITE_KING;
+  }
+
+  if (move.from == Square::A8 || move.to == Square::A8) {
+    castlingRights &= ~CASTLE_BLACK_QUEEN;
+  }
+
+  if (move.from == Square::H8 || move.to == Square::H8) {
+    castlingRights &= ~CASTLE_BLACK_KING;
+  }
+
+  setCastlingRights(castlingRights);
+
+  // Halfmove clock
+  bool pawnMove = (movingPiece == Piece::PAWN);
+  bool capture = (state.capturedPiece != Piece::NONE) || (static_cast<int>(move.flag) & static_cast<int>(MoveFlag::EN_PASSANT));
+  if (pawnMove || capture) {
+    halfmoveClock_ = 0;
+  } else  {
+    halfmoveClock_++;
+  }
+
+  // Switch turn
+  flipCurrentTurn();
+
+  return state;
+}
+
+void Board::undoMove(const Move& move, const MoveState& state) {
+  flipCurrentTurn();
+
+  Color currentColor = currentTurn_;
+  Color enemyColor = (currentColor == Color::WHITE) ? Color::BLACK : Color::WHITE;
+
+  // Castling
+  if (static_cast<int>(move.flag) & static_cast<int>(MoveFlag::CASTLE_KING)) {
+    Square rookFrom = (currentColor == Color::WHITE) ? Square::H1 : Square::H8;
+    Square rookTo = (currentColor == Color::WHITE) ? Square::F1 : Square::F8;
+    removePiece(rookTo);
+    putPiece(currentColor, Piece::ROOK, rookFrom);
+  } else if (static_cast<int>(move.flag) & static_cast<int>(MoveFlag::CASTLE_QUEEN)) {
+    Square rookFrom = (currentColor == Color::WHITE) ? Square::A1 : Square::A8;
+    Square rookTo = (currentColor == Color::WHITE) ? Square::D1 : Square::D8;
+    removePiece(rookTo);
+    putPiece(currentColor, Piece::ROOK, rookFrom);
+  }
+
+  // Moves
+  Piece movingPiece = pieceMailbox_[squareToInt(move.to)];
+  removePiece(move.to);
+
+  Piece originalPiece = move.isPromotion() ? Piece::PAWN : movingPiece;
+  putPiece(currentColor, originalPiece, move.from);
+
+  // Captures
+  if (state.capturedPiece != Piece::NONE) {
+    putPiece(enemyColor, state.capturedPiece, move.to);
+  }
+
+  if (static_cast<int>(move.flag) & static_cast<int>(MoveFlag::EN_PASSANT)) {
+    Square enPassantCaptureSquare = (currentColor == Color::WHITE)
+      ? intToSquare(squareToInt(move.to) - 8)
+      : intToSquare(squareToInt(move.to) + 8);
+    putPiece(enemyColor, Piece::PAWN, enPassantCaptureSquare);
+  }
+
+  // Castling rights
+  castlingRights_ = state.castlingRights;
+  // En passant square
+  enPassantSquare_ = state.enPassantSquare;
+  // Halfmove clock
+  halfmoveClock_ = state.halfmoveClock;
+  // Hash
+  hash_ = state.hash;
+}
+
+
+
+
 Square Board::findKing(Color color) const {
   Bitboard kingBitboard = pieceBitboards_[colorToInt(color)][pieceToInt(Piece::KING)];
 
